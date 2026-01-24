@@ -1243,24 +1243,45 @@ namespace DeskFrame
             SetParent(hwnd, shellView);
 
             int style = (int)GetWindowLong(hwnd, GWL_STYLE);
-            style &= ~WS_POPUP; // remove flag, to make sure it doesn't interfere
-            style |= WS_CHILD; // add flag
+            style &= ~WS_POPUP;
+            style |= WS_CHILD;
             SetWindowLong(hwnd, GWL_STYLE, style);
 
-            // convert coords to parent-relative coords
-            uint dpi = GetDpiForWindow(hwnd);
-            _windowsScalingFactor = dpi / 96.0;
+            uint currentDpi = GetDpiForWindow(hwnd);
+            double currentScale = currentDpi / 96.0;
+
             POINT pt = new POINT
             {
-                X = (int)(Instance.PosX * _windowsScalingFactor),
-                Y = (int)(Instance.PosY * _windowsScalingFactor)
+                X = (int)(Instance.PosX * currentScale),
+                Y = (int)(Instance.PosY * currentScale)
             };
             ScreenToClient(shellView, ref pt);
 
-            SetWindowPos(hwnd, IntPtr.Zero,
-                         pt.X, pt.Y,
-                         0, 0,
+            SetWindowPos(hwnd, IntPtr.Zero, pt.X, pt.Y, 0, 0,
                          SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_SHOWWINDOW);
+
+            uint newDpi = GetDpiForWindow(hwnd);
+            double newScale = newDpi / 96.0;
+
+            bool scaleChanged = (Math.Abs(_windowsScalingFactor - newScale) > 0.001);
+            _windowsScalingFactor = newScale;
+
+            int realWidth = (int)(Instance.Width * newScale);
+            int realHeight = (int)(Instance.Height * newScale);
+
+            SetWindowPos(hwnd, IntPtr.Zero, 0, 0, realWidth, realHeight,
+                         SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOREDRAW);
+
+            if (scaleChanged)
+            {
+                Dispatcher.InvokeAsync(async () =>
+                {
+                    foreach (var item in FileItems)
+                    {
+                        item.Thumbnail = await GetThumbnailAsync(item.FullPath!);
+                    }
+                });
+            }
         }
 
         public async Task AdjustPositionAsync()
