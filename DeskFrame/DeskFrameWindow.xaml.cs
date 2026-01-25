@@ -3555,7 +3555,7 @@ namespace DeskFrame
                 cursorPos.Y - 10 < windowPos.Y ||
                 cursorPos.Y + 10 > windowPos.Y + physicalHeight)
             {
-                if (!_contextMenuIsOpen)
+                if (!_contextMenuIsOpen && !_mouseIsOver)
                 {
                     _selectedItems.Clear();
                     foreach (var fileItem in FileItems)
